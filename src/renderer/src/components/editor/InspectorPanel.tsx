@@ -95,6 +95,14 @@ function BasicSettings({ project }: { project: VideoProject }): JSX.Element {
     setFocusPicking(nextActive)
   }
 
+  const setDuration = (duration: number): void => update((next) => {
+    next.player.duration = duration
+    const minimumPlayerScene = Math.min(0.75, duration * 0.15)
+    const latestTransitionStart = Math.max(0, duration - next.transition.duration - minimumPlayerScene)
+    next.transition.startTime = Math.min(next.transition.startTime, latestTransitionStart)
+    return next
+  })
+
   return (
     <>
       <PanelHeading title="完成设置" note="只需确认下面三项" />
@@ -113,8 +121,9 @@ function BasicSettings({ project }: { project: VideoProject }): JSX.Element {
       </section>
       <section className="simple-section">
         <h3>3. 成片时长</h3>
+        <p>包含转场和主画面，导出文件将严格使用所选时长。</p>
         <div className="duration-choices">
-          {[5, 10, 15, 30].map((duration) => <button key={duration} className={project.player.duration === duration ? 'selected' : ''} onClick={() => update((next) => { next.player.duration = duration; return next })}>{duration} 秒</button>)}
+          {[5, 10, 15, 30].map((duration) => <button key={duration} className={project.player.duration === duration ? 'selected' : ''} onClick={() => setDuration(duration)}>{duration} 秒</button>)}
         </div>
       </section>
       <p className="ready-note"><Check size={14} /> 其余动画与排版已由模板自动完成</p>

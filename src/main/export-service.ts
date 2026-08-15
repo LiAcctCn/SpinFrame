@@ -211,7 +211,7 @@ export class ExportService {
     const validator = spawn(ffmpegPath, [
       '-v', 'error', '-i', outputPath,
       '-map', '0:v:0', '-map', '0:a:0',
-      '-t', '0.35', '-f', 'null', '-'
+      '-f', 'null', '-'
     ], { stdio: ['ignore', 'ignore', 'pipe'] })
     this.activeProcess = validator
     let validationError = ''

@@ -1,6 +1,6 @@
 {
   "name": "spinframe",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "author": "SpinFrame",
   "description": "Template-based music transition video generator for macOS and Windows",

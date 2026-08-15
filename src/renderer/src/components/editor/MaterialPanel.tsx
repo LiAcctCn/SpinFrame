@@ -59,8 +59,9 @@ export function MaterialPanel({ project }: { project: VideoProject }): JSX.Eleme
         const current = next[kind]
         if (current?.id === asset.id) next[kind] = { ...current, ...metadata }
         if (kind === 'transitionVideo' && metadata.duration) {
-          const latestStart = Math.max(0.5, metadata.duration - next.transition.duration)
-          next.transition.startTime = Math.min(latestStart, Math.max(0.5, metadata.duration * 0.65))
+          const latestMediaStart = Math.max(0.5, metadata.duration - next.transition.duration)
+          const latestOutputStart = Math.max(0, next.player.duration - next.transition.duration - 0.75)
+          next.transition.startTime = Math.min(latestMediaStart, latestOutputStart, Math.max(0.5, metadata.duration * 0.65))
         }
         if (peaks) next.musicAnalysis = peaks
         if (accent) next.palette.accent = accent

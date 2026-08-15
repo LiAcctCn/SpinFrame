@@ -74,13 +74,6 @@ export interface VideoProject {
   updatedAt: string
 }
 
-export const DEFAULT_LYRICS: LyricsLine[] = [
-  { time: 0, text: '享受一分钟的感动' },
-  { time: 3.8, text: '是否爱上一个人不问明天过后' },
-  { time: 8.2, text: '山明和水秀不比你有看头' },
-  { time: 12.5, text: '牵着你的手一直走到最后' }
-]
-
 export function createDemoProject(): VideoProject {
   return {
     version: 1,
@@ -118,12 +111,13 @@ export function createDemoProject(): VideoProject {
 }
 
 export function totalDuration(project: VideoProject): number {
-  return project.transition.startTime + project.transition.duration + project.player.duration
+  return Math.max(1, project.player.duration)
 }
 
 export function mediaUrl(asset?: MediaAsset): string | undefined {
   if (!asset) return undefined
-  return `spinframe-media://asset/${asset.relativePath.split('/').map(encodeURIComponent).join('/')}`
+  const url = `spinframe-media://asset/${asset.relativePath.split('/').map(encodeURIComponent).join('/')}`
+  return isImageAsset(asset) ? `${url}?max=2560` : url
 }
 
 export function isImageAsset(asset?: MediaAsset): boolean {

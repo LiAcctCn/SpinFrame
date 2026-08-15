@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Heart, ListMusic, MessageCircle, Pause, Play, Repeat2, SkipBack, SkipForward } from 'lucide-react'
 import type { FocusPoint, LyricsLine, MediaAsset, VideoProject } from '@shared/project'
-import { DEFAULT_LYRICS, isImageAsset, mediaUrl } from '@shared/project'
+import { isImageAsset, mediaUrl, totalDuration } from '@shared/project'
 import { easeOutCubic, formatTime, mix, resolveCompositionTime, smoothstep } from '@shared/timeline'
 import './composition.css'
 
@@ -51,7 +51,7 @@ function TimelineMedia({ asset, sourceTime, active, playing, exportMode, classNa
     return () => video.removeEventListener('volumechange', silenceVideo)
   }, [sourceTime, active, playing, exportMode, image, asset?.id])
   if (!url) return null
-  if (image) return <img className={className} src={url} alt="" draggable={false} decoding="sync" style={style} />
+  if (image) return <img className={className} src={url} alt="" draggable={false} decoding="sync" loading="eager" style={style} />
   return (
     <video
       ref={ref}
@@ -141,8 +141,8 @@ function Waveform({ project, time }: { project: VideoProject; time: number }): J
   )
 }
 
-function PlayerControls({ project, time, playing }: { project: VideoProject; time: number; playing: boolean }): JSX.Element {
-  const progress = Math.min(1, time / project.player.duration)
+function PlayerControls({ project, time, duration, playing }: { project: VideoProject; time: number; duration: number; playing: boolean }): JSX.Element {
+  const progress = Math.min(1, time / Math.max(0.01, duration))
   return (
     <div className="player-chrome">
       <Waveform project={project} time={time} />
@@ -152,7 +152,7 @@ function PlayerControls({ project, time, playing }: { project: VideoProject; tim
           <i style={{ width: `${progress * 100}%` }} />
           <b style={{ left: `${progress * 100}%` }} />
         </div>
-        <span>{formatTime(project.player.duration)}</span>
+        <span>{formatTime(duration)}</span>
       </div>
       <div className="control-row">
         <Repeat2 size={20} strokeWidth={1.35} />
@@ -211,7 +211,10 @@ export function CompositionStage({ project, time, playing, exportMode = false, f
   const rightVideoTime = project.rightVideo?.duration
     ? timeline.playerTime % Math.max(0.01, project.rightVideo.duration)
     : timeline.playerTime
-  const lyrics = project.lyrics?.lines.length ? project.lyrics.lines : DEFAULT_LYRICS
+  const lyrics = project.lyrics?.lines ?? []
+  const duration = totalDuration(project)
+  const showTransitionLayer = time < timeline.playerStart
+  const showPlayerScene = time >= project.transition.startTime
 
   const handleClick = (event: React.MouseEvent<HTMLDivElement>): void => {
     if (!focusPicking || !onFocusSelect) return
@@ -229,8 +232,8 @@ export function CompositionStage({ project, time, playing, exportMode = false, f
   }) as React.CSSProperties, [project.palette])
 
   return (
-    <div className={`composition-stage${portrait ? ' is-portrait' : ''}${focusPicking ? ' is-focus-picking' : ''}`} style={paperStyle} onClick={handleClick}>
-      <div
+    <div className={`composition-stage${portrait ? ' is-portrait' : ''}${focusPicking ? ' is-focus-picking' : ''}${exportMode ? ' is-export' : ''}`} style={paperStyle} onClick={handleClick}>
+      {showTransitionLayer && <div
         className="transition-layer"
         style={{
           opacity: time >= timeline.playerStart ? 0 : clipOpacity,
@@ -249,9 +252,9 @@ export function CompositionStage({ project, time, playing, exportMode = false, f
             className="transition-video"
           />
         ) : <TransitionPlaceholder focus={focus} />}
-      </div>
+      </div>}
 
-      <div
+      {showPlayerScene && <div
         className="player-scene"
         style={{
           opacity: playerOpacity,
@@ -290,16 +293,18 @@ export function CompositionStage({ project, time, playing, exportMode = false, f
           <p>{project.player.eyebrow}</p>
         </div>
 
-        <div className="lyrics-wrap" style={{ opacity: lyricsOpacity }}>
-          <Lyrics lines={lyrics} musicTime={timeline.musicTime} />
-        </div>
+        {lyrics.length > 0 && (
+          <div className="lyrics-wrap" style={{ opacity: lyricsOpacity }}>
+            <Lyrics lines={lyrics} musicTime={timeline.musicTime} />
+          </div>
+        )}
 
         <div className="vinyl-position">
           <Vinyl project={project} angle={angle} />
         </div>
 
         <div className="chrome-wrap" style={{ opacity: chromeOpacity }}>
-          <PlayerControls project={project} time={timeline.playerTime} playing={playing} />
+          <PlayerControls project={project} time={timeline.musicTime} duration={duration} playing={playing} />
         </div>
 
         <div className="social-marks" style={{ opacity: chromeOpacity }}>
@@ -308,7 +313,7 @@ export function CompositionStage({ project, time, playing, exportMode = false, f
         </div>
         <div className="vertical-note">A TEMPLATE-BASED MUSIC MOTION STUDY</div>
         <div className="scene-grain" />
-      </div>
+      </div>}
 
       {focusPicking && (
         <div className="focus-overlay">

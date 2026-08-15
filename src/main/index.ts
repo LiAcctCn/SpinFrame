@@ -1,5 +1,5 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
-import { join } from 'node:path'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, shell } from 'electron'
+import { extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { electronApp, is } from '@electron-toolkit/utils'
 import type { AssetKind, VideoProject } from '../shared/project'
@@ -17,6 +17,39 @@ app.commandLine.appendSwitch('force-device-scale-factor', '1')
 const projectService = new ProjectService()
 let mainWindow: BrowserWindow | undefined
 let exportService: ExportService | undefined
+
+function mediaResponse(request: Request, filePath: string): Response | Promise<Response> {
+  const url = new URL(request.url)
+  const requestedMax = Number(url.searchParams.get('max'))
+  if (!Number.isFinite(requestedMax) || requestedMax < 256) return net.fetch(pathToFileURL(filePath).toString())
+
+  try {
+    const image = nativeImage.createFromPath(filePath)
+    const size = image.getSize()
+    const maxDimension = Math.min(4096, Math.round(requestedMax))
+    if (image.isEmpty() || Math.max(size.width, size.height) <= maxDimension) {
+      return net.fetch(pathToFileURL(filePath).toString())
+    }
+    const scale = maxDimension / Math.max(size.width, size.height)
+    const resized = image.resize({
+      width: Math.max(1, Math.round(size.width * scale)),
+      height: Math.max(1, Math.round(size.height * scale)),
+      quality: 'best'
+    })
+    const jpeg = ['.jpg', '.jpeg'].includes(extname(filePath).toLowerCase())
+    const bytes = jpeg ? resized.toJPEG(92) : resized.toPNG()
+    const body = new ArrayBuffer(bytes.byteLength)
+    new Uint8Array(body).set(bytes)
+    return new Response(body, {
+      headers: {
+        'Content-Type': jpeg ? 'image/jpeg' : 'image/png',
+        'Cache-Control': 'public, max-age=31536000, immutable'
+      }
+    })
+  } catch {
+    return net.fetch(pathToFileURL(filePath).toString())
+  }
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -92,7 +125,7 @@ app.whenReady().then(async () => {
     const relativePath = decodeURIComponent(url.pathname.replace(/^\//, ''))
     const filePath = projectService.resolveMedia(relativePath)
     if (!filePath) return new Response('Invalid media path', { status: 403 })
-    return net.fetch(pathToFileURL(filePath).toString())
+    return mediaResponse(request, filePath)
   })
   registerIpc()
   exportService = new ExportService(

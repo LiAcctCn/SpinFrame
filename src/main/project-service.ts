@@ -196,7 +196,8 @@ export class ProjectService {
   }
 
   private async installDefaultMusic(): Promise<boolean> {
-    if (this.project.music) return false
+    const defaultMusicId = 'spinframe-default-music'
+    if (this.project.music && this.project.music.id !== defaultMusicId) return false
     const sourcePath = app.isPackaged
       ? join(process.resourcesPath, 'demo', 'music.m4a')
       : join(app.getAppPath(), 'assets', 'demo', 'music.m4a')
@@ -208,21 +209,25 @@ export class ProjectService {
       // A missing optional demo asset must never prevent the editor from starting.
       return false
     }
+    const changed = this.project.music?.name !== '明天过后.m4a'
+      || this.project.music?.duration !== 33.856
+      || this.project.music?.relativePath !== relativePath
+      || this.project.player.musicStartOffset !== 0
     this.project.music = {
-      id: 'spinframe-default-music',
+      id: defaultMusicId,
       kind: 'music',
-      name: '2026-08-16 00-16-59.m4a',
+      name: '明天过后.m4a',
       relativePath,
       mimeType: 'audio/mp4',
-      duration: 17.98
+      duration: 33.856
     }
     this.project.player.musicStartOffset = 0
-    return true
+    return changed
   }
 
   private normalizeProject(value: Partial<VideoProject>): VideoProject {
     const fallback = createDemoProject()
-    return {
+    const normalized: VideoProject = {
       ...fallback,
       ...value,
       palette: { ...fallback.palette, ...value.palette },
@@ -241,5 +246,12 @@ export class ProjectService {
       export: { ...fallback.export, ...value.export },
       version: 1
     }
+    normalized.player.duration = Math.max(1, Number(normalized.player.duration) || fallback.player.duration)
+    normalized.transition.duration = Math.max(0.2, Number(normalized.transition.duration) || fallback.transition.duration)
+    normalized.transition.startTime = Math.min(
+      Math.max(0, Number(normalized.transition.startTime) || 0),
+      Math.max(0, normalized.player.duration - normalized.transition.duration)
+    )
+    return normalized
   }
 }

@@ -14,6 +14,11 @@
 
 .composition-stage.is-focus-picking { cursor: crosshair; }
 .composition-stage.is-portrait { width: 1080px; height: 1920px; }
+.composition-stage.is-export .transition-layer,
+.composition-stage.is-export .player-scene,
+.composition-stage.is-export .right-video,
+.composition-stage.is-export .vinyl-assembly { will-change: auto; }
+.composition-stage.is-export .lyric-line { transition: none; }
 
 .transition-layer,
 .player-scene,
