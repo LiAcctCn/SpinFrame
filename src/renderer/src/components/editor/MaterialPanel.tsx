@@ -1,13 +1,13 @@
-import { Check, FileAudio, FileText, Image as ImageIcon, Trash2, Upload, Video } from 'lucide-react'
+import { Check, FileAudio, FileText, Image as ImageIcon, Trash2, Upload } from 'lucide-react'
 import type { AssetKind, MediaAsset, VideoProject } from '@shared/project'
-import { mediaUrl } from '@shared/project'
+import { isImageAsset, mediaUrl } from '@shared/project'
 import { analyzeAudio, extractAccent, probeMedia } from '@/lib/media'
 import { useEditorStore } from '@/store/editor'
 
 const items: Array<{ kind: AssetKind; label: string; hint: string; optional?: boolean }> = [
-  { kind: 'transitionVideo', label: '转场视频', hint: '包含光盘或圆形物体' },
+  { kind: 'transitionVideo', label: '转场素材', hint: '包含光盘的照片或视频' },
   { kind: 'cover', label: '专辑封面', hint: '用于黑胶唱片中心' },
-  { kind: 'rightVideo', label: '主画面视频', hint: '显示在成片右侧' },
+  { kind: 'rightVideo', label: '主画面素材', hint: '显示在右侧的照片或视频' },
   { kind: 'music', label: '音乐', hint: 'MP3、M4A、WAV 或 FLAC' },
   { kind: 'lyrics', label: '歌词', hint: 'LRC 文件', optional: true }
 ]
@@ -18,9 +18,25 @@ function assetFor(project: VideoProject, kind: AssetKind): MediaAsset | undefine
 
 function AssetPreview({ kind, asset }: { kind: AssetKind; asset?: MediaAsset }): JSX.Element {
   const url = mediaUrl(asset)
-  if (url && kind === 'cover') return <img src={url} alt="" />
-  if (url && (kind === 'transitionVideo' || kind === 'rightVideo')) return <video src={url} muted preload="metadata" />
-  const Icon = kind === 'music' ? FileAudio : kind === 'lyrics' ? FileText : kind === 'cover' ? ImageIcon : Video
+  if (url && isImageAsset(asset)) return <img src={url} alt="" />
+  if (url && (kind === 'transitionVideo' || kind === 'rightVideo')) {
+    return (
+      <video
+        src={url}
+        muted
+        playsInline
+        disablePictureInPicture
+        disableRemotePlayback
+        preload="metadata"
+        onLoadedMetadata={(event) => {
+          event.currentTarget.defaultMuted = true
+          event.currentTarget.muted = true
+          event.currentTarget.volume = 0
+        }}
+      />
+    )
+  }
+  const Icon = kind === 'music' ? FileAudio : kind === 'lyrics' ? FileText : ImageIcon
   return <Icon size={21} strokeWidth={1.4} />
 }
 

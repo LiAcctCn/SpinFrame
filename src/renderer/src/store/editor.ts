@@ -97,6 +97,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         next.lyrics = { asset: result.asset, lines: parseLrc(result.text ?? '') }
       } else {
         next[kind] = result.asset
+        if (kind === 'music') next.player.musicStartOffset = 0
       }
       next.updatedAt = new Date().toISOString()
       set({ project: next, inspector: kind, error: undefined })
@@ -123,7 +124,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const project = get().project
     set({ playhead: project ? Math.min(Math.max(0, time), totalDuration(project)) : Math.max(0, time) })
   },
-  setPlaying: (playing) => set({ playing }),
+  setPlaying: (playing) => {
+    const project = get().project
+    const playhead = get().playhead
+    if (!playing || !project) {
+      set({ playing })
+      return
+    }
+    const end = totalDuration(project)
+    const endTolerance = Math.max(0.02, 1 / Math.max(1, project.export.fps))
+    set({ playing: true, playhead: playhead >= end - endTolerance ? 0 : playhead })
+  },
   setFocusPicking: (focusPicking) => set({ focusPicking, playing: focusPicking ? false : get().playing }),
   setInspector: (inspector) => set({ inspector }),
   setError: (error) => set({ error })

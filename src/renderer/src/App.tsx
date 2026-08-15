@@ -30,22 +30,97 @@ function usePlaybackClock(project?: VideoProject): void {
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [playing, project?.id])
+  }, [playing, project?.id, project?.transition.startTime, project?.transition.duration, project?.player.duration])
 }
 
 function TimelineAudio({ project, time, playing }: { project: VideoProject; time: number; playing: boolean }): JSX.Element | null {
   const ref = useRef<HTMLAudioElement>(null)
+  const playPending = useRef(false)
+  const playbackFailure = useRef<string>()
+  const setError = useEditorStore((state) => state.setError)
   const url = mediaUrl(project.music)
   const timeline = resolveCompositionTime(project, time)
+
+  useEffect(() => {
+    playbackFailure.current = undefined
+    playPending.current = false
+    return () => {
+      const audio = ref.current
+      if (audio) audio.pause()
+    }
+  }, [url])
+
   useEffect(() => {
     const audio = ref.current
     if (!audio) return
     const target = Math.max(0, timeline.musicTime)
-    if (Math.abs(audio.currentTime - target) > (playing ? 0.2 : 0.02)) audio.currentTime = Math.min(target, Number.isFinite(audio.duration) ? Math.max(0, audio.duration - 0.01) : target)
-    if (playing) void audio.play().catch(() => undefined)
-    else audio.pause()
-  }, [timeline.musicTime, playing])
-  return url ? <audio ref={ref} src={url} preload="auto" /> : null
+    let disposed = false
+
+    const reportFailure = (message: string): void => {
+      if (playbackFailure.current === message) return
+      playbackFailure.current = message
+      setError(message)
+    }
+
+    const synchronize = (): void => {
+      if (disposed) return
+      if (!playing) {
+        playbackFailure.current = undefined
+        audio.pause()
+      }
+      if (audio.readyState < HTMLMediaElement.HAVE_METADATA) return
+
+      const duration = Number.isFinite(audio.duration) ? audio.duration : undefined
+      const boundedTarget = duration === undefined ? target : Math.min(target, Math.max(0, duration - 0.01))
+      const reachedAudioEnd = duration !== undefined && target >= Math.max(0, duration - 0.015)
+      const seekThreshold = playing ? 0.22 : 0.025
+
+      try {
+        if (audio.ended || Math.abs(audio.currentTime - boundedTarget) > seekThreshold) audio.currentTime = boundedTarget
+      } catch {
+        audio.pause()
+        reportFailure('预览音频无法定位播放位置，请更换音频文件后重试。')
+        return
+      }
+
+      if (!playing || reachedAudioEnd || playbackFailure.current) {
+        audio.pause()
+        return
+      }
+      if (!audio.paused || playPending.current) return
+
+      playPending.current = true
+      void audio.play().then(() => {
+        playPending.current = false
+      }).catch((error: unknown) => {
+        playPending.current = false
+        if (disposed || (error instanceof DOMException && error.name === 'AbortError')) return
+        const blocked = error instanceof DOMException && error.name === 'NotAllowedError'
+        reportFailure(blocked ? '系统阻止了预览音频播放，请再次点击播放键。' : '预览音频无法播放，请确认音频格式可用。')
+      })
+    }
+
+    audio.addEventListener('loadedmetadata', synchronize)
+    audio.addEventListener('canplay', synchronize)
+    synchronize()
+    return () => {
+      disposed = true
+      audio.removeEventListener('loadedmetadata', synchronize)
+      audio.removeEventListener('canplay', synchronize)
+    }
+  }, [timeline.musicTime, playing, url, setError])
+
+  const handleAudioError = (): void => {
+    const audio = ref.current
+    if (!audio || playbackFailure.current) return
+    const message = audio.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+      ? '当前音频编码无法预览，请更换为 MP3、M4A、AAC、WAV 或 FLAC。'
+      : '读取预览音频时发生故障，请检查文件是否完整。'
+    playbackFailure.current = message
+    setError(message)
+  }
+
+  return url ? <audio ref={ref} src={url} preload="auto" data-preview-audio onError={handleAudioError} /> : null
 }
 
 function ScaledPreview({ project }: { project: VideoProject }): JSX.Element {

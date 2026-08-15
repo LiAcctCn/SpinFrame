@@ -2,15 +2,22 @@ import { app, dialog } from 'electron'
 import { promises as fs } from 'node:fs'
 import { basename, dirname, extname, join, normalize, relative, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { spawn } from 'node:child_process'
 import type { AssetKind, MediaAsset, VideoProject } from '../shared/project'
 import { createDemoProject } from '../shared/project'
 
 const PROJECT_FILENAME = 'project.json'
+const videoExtensions = ['.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv']
+const imageExtensions = [
+  '.jpg', '.jpeg', '.png', '.webp', '.avif', '.bmp',
+  ...(process.platform === 'darwin' ? ['.heic', '.heif'] : [])
+]
+const visualExtensions = [...videoExtensions, ...imageExtensions]
 
 const allowedExtensions: Record<AssetKind, string[]> = {
-  transitionVideo: ['.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv'],
-  cover: ['.jpg', '.jpeg', '.png', '.webp', '.avif'],
-  rightVideo: ['.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv'],
+  transitionVideo: visualExtensions,
+  cover: imageExtensions,
+  rightVideo: visualExtensions,
   music: ['.mp3', '.m4a', '.aac', '.wav', '.flac'],
   lyrics: ['.lrc', '.txt']
 }
@@ -18,7 +25,7 @@ const allowedExtensions: Record<AssetKind, string[]> = {
 const mimeByExtension: Record<string, string> = {
   '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.m4v': 'video/x-m4v',
   '.webm': 'video/webm', '.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska',
-  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.bmp': 'image/bmp',
   '.webp': 'image/webp', '.avif': 'image/avif', '.mp3': 'audio/mpeg',
   '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.wav': 'audio/wav',
   '.flac': 'audio/flac', '.lrc': 'text/plain', '.txt': 'text/plain'
@@ -116,22 +123,25 @@ export class ProjectService {
       sourcePath = result.filePaths[0]
     }
 
-    const extension = extname(sourcePath).toLowerCase()
-    if (!allowedExtensions[kind].includes(extension)) {
-      throw new Error(`Unsupported ${this.displayName(kind)} format: ${extension || 'unknown'}`)
+    const sourceExtension = extname(sourcePath).toLowerCase()
+    if (!allowedExtensions[kind].includes(sourceExtension)) {
+      throw new Error(`Unsupported ${this.displayName(kind)} format: ${sourceExtension || 'unknown'}`)
     }
 
     await fs.mkdir(join(this.projectDirectory, 'media'), { recursive: true })
-    const targetName = `${kind}-${Date.now()}-${randomUUID().slice(0, 6)}${extension}`
+    const convertAppleImage = sourceExtension === '.heic' || sourceExtension === '.heif'
+    const targetExtension = convertAppleImage ? '.png' : sourceExtension
+    const targetName = `${kind}-${Date.now()}-${randomUUID().slice(0, 6)}${targetExtension}`
     const targetPath = join(this.projectDirectory, 'media', targetName)
-    await fs.copyFile(sourcePath, targetPath)
+    if (convertAppleImage) await this.convertAppleImage(sourcePath, targetPath)
+    else await fs.copyFile(sourcePath, targetPath)
 
     const asset: MediaAsset = {
       id: randomUUID(),
       kind,
       name: basename(sourcePath),
       relativePath: relative(this.projectDirectory, targetPath).split('\\').join('/'),
-      mimeType: mimeByExtension[extension] ?? 'application/octet-stream'
+      mimeType: mimeByExtension[targetExtension] ?? 'application/octet-stream'
     }
 
     const response: { asset: MediaAsset; text?: string } = { asset }
@@ -157,9 +167,32 @@ export class ProjectService {
 
   private displayName(kind: AssetKind): string {
     return ({
-      transitionVideo: 'Transition Video', cover: 'Album Cover', rightVideo: 'Right Side Video',
+      transitionVideo: 'Transition Material', cover: 'Album Cover', rightVideo: 'Main Visual',
       music: 'Music', lyrics: 'Lyrics'
     })[kind]
+  }
+
+  private async convertAppleImage(sourcePath: string, targetPath: string): Promise<void> {
+    if (process.platform !== 'darwin') throw new Error('HEIC and HEIF import is only available on macOS')
+    try {
+      const converter = spawn('/usr/bin/sips', ['-s', 'format', 'png', sourcePath, '--out', targetPath], {
+        stdio: ['ignore', 'ignore', 'pipe']
+      })
+      let diagnostic = ''
+      converter.stderr.on('data', (chunk) => {
+        diagnostic = `${diagnostic}${chunk.toString()}`.slice(-2000)
+      })
+      const code = await new Promise<number | null>((resolve, reject) => {
+        converter.once('error', reject)
+        converter.once('close', resolve)
+      })
+      if (code !== 0) throw new Error(`The HEIC/HEIF photo could not be converted. ${diagnostic}`)
+      const stats = await fs.stat(targetPath)
+      if (!stats.isFile() || stats.size === 0) throw new Error('The HEIC/HEIF conversion produced an empty image')
+    } catch (error) {
+      await fs.rm(targetPath, { force: true }).catch(() => undefined)
+      throw error
+    }
   }
 
   private async installDefaultMusic(): Promise<boolean> {
@@ -200,7 +233,11 @@ export class ProjectService {
       },
       coverTransform: { ...fallback.coverTransform, ...value.coverTransform },
       rightVideoTransform: { ...fallback.rightVideoTransform, ...value.rightVideoTransform },
-      player: { ...fallback.player, ...value.player },
+      player: {
+        ...fallback.player,
+        ...value.player,
+        musicStartOffset: Math.max(0, Number(value.player?.musicStartOffset ?? fallback.player.musicStartOffset) || 0)
+      },
       export: { ...fallback.export, ...value.export },
       version: 1
     }

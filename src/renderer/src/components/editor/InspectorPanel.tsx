@@ -108,7 +108,7 @@ function BasicSettings({ project }: { project: VideoProject }): JSX.Element {
         <p>让真实光盘准确转场为黑胶唱片。</p>
         <button className={`focus-button${focusPicking ? ' active' : ''}`} disabled={!project.transitionVideo} onClick={pickFocus}>
           <Crosshair size={18} />
-          {!project.transitionVideo ? '请先添加转场视频' : focusPicking ? '请在预览中点击光盘中心' : '选择光盘中心'}
+          {!project.transitionVideo ? '请先添加转场素材' : focusPicking ? '请在预览中点击光盘中心' : '选择光盘中心'}
         </button>
       </section>
       <section className="simple-section">

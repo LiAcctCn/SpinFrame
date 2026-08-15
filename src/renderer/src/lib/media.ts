@@ -4,7 +4,7 @@ import { mediaUrl } from '@shared/project'
 export async function probeMedia(asset: MediaAsset): Promise<Partial<MediaAsset>> {
   const url = mediaUrl(asset)
   if (!url) return {}
-  if (asset.kind === 'cover') {
+  if (asset.mimeType.startsWith('image/')) {
     const image = new Image()
     image.src = url
     await image.decode()

@@ -126,6 +126,10 @@ export function mediaUrl(asset?: MediaAsset): string | undefined {
   return `spinframe-media://asset/${asset.relativePath.split('/').map(encodeURIComponent).join('/')}`
 }
 
+export function isImageAsset(asset?: MediaAsset): boolean {
+  return asset?.mimeType.startsWith('image/') ?? false
+}
+
 export function parseLrc(source: string): LyricsLine[] {
   const lines: LyricsLine[] = []
   for (const rawLine of source.split(/\r?\n/)) {

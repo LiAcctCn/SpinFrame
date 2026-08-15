@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Heart, ListMusic, MessageCircle, Pause, Play, Repeat2, SkipBack, SkipForward } from 'lucide-react'
 import type { FocusPoint, LyricsLine, MediaAsset, VideoProject } from '@shared/project'
-import { DEFAULT_LYRICS, mediaUrl } from '@shared/project'
+import { DEFAULT_LYRICS, isImageAsset, mediaUrl } from '@shared/project'
 import { easeOutCubic, formatTime, mix, resolveCompositionTime, smoothstep } from '@shared/timeline'
 import './composition.css'
 
@@ -14,7 +14,7 @@ interface CompositionStageProps {
   onFocusSelect?: (point: FocusPoint) => void
 }
 
-interface TimelineVideoProps {
+interface TimelineMediaProps {
   asset?: MediaAsset
   sourceTime: number
   active: boolean
@@ -24,28 +24,41 @@ interface TimelineVideoProps {
   style?: React.CSSProperties
 }
 
-function TimelineVideo({ asset, sourceTime, active, playing, exportMode, className, style }: TimelineVideoProps): JSX.Element | null {
+function TimelineMedia({ asset, sourceTime, active, playing, exportMode, className, style }: TimelineMediaProps): JSX.Element | null {
   const ref = useRef<HTMLVideoElement>(null)
   const url = mediaUrl(asset)
+  const image = isImageAsset(asset)
   useEffect(() => {
     const video = ref.current
-    if (!video) return
-    video.muted = true
-    video.volume = 0
-    if (exportMode) return
+    if (!video || image) return
+    const silenceVideo = (): void => {
+      video.defaultMuted = true
+      video.muted = true
+      video.volume = 0
+    }
+    silenceVideo()
+    video.addEventListener('volumechange', silenceVideo)
+    if (exportMode) {
+      video.pause()
+      return () => video.removeEventListener('volumechange', silenceVideo)
+    }
     const duration = Number.isFinite(video.duration) ? video.duration : sourceTime + 1
     const target = Math.max(0, Math.min(sourceTime, Math.max(0, duration - 0.01)))
     if (Math.abs(video.currentTime - target) > 0.16) video.currentTime = target
-    if (playing && active) void video.play().catch(() => undefined)
+    const frozenAtEnd = Number.isFinite(video.duration) && sourceTime >= Math.max(0, video.duration - 0.02)
+    if (playing && active && !frozenAtEnd) void video.play().catch(() => undefined)
     else video.pause()
-  }, [sourceTime, active, playing, exportMode])
+    return () => video.removeEventListener('volumechange', silenceVideo)
+  }, [sourceTime, active, playing, exportMode, image, asset?.id])
   if (!url) return null
+  if (image) return <img className={className} src={url} alt="" draggable={false} decoding="sync" style={style} />
   return (
     <video
       ref={ref}
       className={className}
       src={url}
       muted
+      disableRemotePlayback
       disablePictureInPicture
       playsInline
       preload="auto"
@@ -227,7 +240,7 @@ export function CompositionStage({ project, time, playing, exportMode = false, f
         }}
       >
         {project.transitionVideo ? (
-          <TimelineVideo
+          <TimelineMedia
             asset={project.transitionVideo}
             sourceTime={transitionVideoTime}
             active={time < timeline.playerStart}
@@ -249,7 +262,7 @@ export function CompositionStage({ project, time, playing, exportMode = false, f
         <div className="paper-field" />
         <div className="right-visual" style={{ opacity: rightOpacity }}>
           {project.rightVideo ? (
-            <TimelineVideo
+            <TimelineMedia
               asset={project.rightVideo}
               sourceTime={rightVideoTime}
               active={time >= project.transition.startTime}
@@ -263,7 +276,7 @@ export function CompositionStage({ project, time, playing, exportMode = false, f
           ) : (
             <div className="right-placeholder">
               <div className="portrait-shape" />
-              <span>RIGHT SIDE<br />MOVING IMAGE</span>
+              <span>RIGHT SIDE<br />VISUAL</span>
               <small>02 / VISUAL MATERIAL</small>
             </div>
           )}
