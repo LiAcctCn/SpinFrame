@@ -1,0 +1,80 @@
+{
+  "name": "spinframe",
+  "version": "0.1.1",
+  "private": true,
+  "author": "SpinFrame",
+  "description": "Template-based music transition video generator for macOS and Windows",
+  "main": "out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node scripts/ensure-ffmpeg-mode.mjs",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
+    "dist:mac": "npm run typecheck && npm run build && electron-builder --mac --arm64",
+    "dist:win": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "@electron-toolkit/utils": "^3.0.0",
+    "@ffmpeg-installer/ffmpeg": "1.1.0",
+    "@fontsource/bodoni-moda": "^5.2.6",
+    "@fontsource/dm-sans": "^5.2.6",
+    "@fontsource/noto-sans-sc": "^5.2.7",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  },
+  "build": {
+    "appId": "studio.spinframe.app",
+    "productName": "SpinFrame",
+    "directories": {
+      "output": "release"
+    },
+    "afterPack": "scripts/after-pack.cjs",
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/demo/music.m4a",
+        "to": "demo/music.m4a"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/@ffmpeg-installer/**"
+    ],
+    "mac": {
+      "category": "public.app-category.video",
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
