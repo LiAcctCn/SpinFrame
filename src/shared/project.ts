@@ -74,6 +74,13 @@ export interface VideoProject {
   updatedAt: string
 }
 
+export const DEFAULT_LYRICS: LyricsLine[] = [
+  { time: 0, text: '享受一分钟的感动' },
+  { time: 3.8, text: '是否爱上一个人不问明天过后' },
+  { time: 8.2, text: '山明和水秀不比你有看头' },
+  { time: 12.5, text: '牵着你的手一直走到最后' }
+]
+
 export function createDemoProject(): VideoProject {
   return {
     version: 1,
@@ -125,15 +132,30 @@ export function isImageAsset(asset?: MediaAsset): boolean {
 }
 
 export function parseLrc(source: string): LyricsLine[] {
+  const normalized = source.replace(/^\uFEFF/, '').replace(/\0/g, '').replace(/\r\n?/g, '\n')
+  const offsetMatch = normalized.match(/\[offset:\s*([+-]?\d+)\s*\]/i)
+  const offsetSeconds = offsetMatch ? Number(offsetMatch[1]) / 1000 : 0
   const lines: LyricsLine[] = []
-  for (const rawLine of source.split(/\r?\n/)) {
-    const timestamps = [...rawLine.matchAll(/\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g)]
-    const text = rawLine.replace(/\[[^\]]+\]/g, '').trim()
+  const plainLines: string[] = []
+  for (const rawLine of normalized.split('\n')) {
+    const timestamps = [...rawLine.matchAll(/\[(?:(\d{1,2}):)?(\d{1,3}):([0-5]?\d)(?:[.:](\d{1,3}))?\]/g)]
+    const text = rawLine
+      .replace(/\[[^\]]+\]/g, '')
+      .replace(/<(?:(?:\d{1,2}:)?\d{1,3}:[0-5]?\d(?:[.:]\d{1,3})?)>/g, '')
+      .trim()
     if (!text) continue
+    if (!timestamps.length) {
+      plainLines.push(text)
+      continue
+    }
     for (const stamp of timestamps) {
-      const fraction = stamp[3] ? Number(`0.${stamp[3].padEnd(3, '0').slice(0, 3)}`) : 0
-      lines.push({ time: Number(stamp[1]) * 60 + Number(stamp[2]) + fraction, text })
+      const hours = Number(stamp[1] ?? 0)
+      const minutes = Number(stamp[2])
+      const seconds = Number(stamp[3])
+      const fraction = stamp[4] ? Number(`0.${stamp[4].padEnd(3, '0').slice(0, 3)}`) : 0
+      lines.push({ time: Math.max(0, hours * 3600 + minutes * 60 + seconds + fraction + offsetSeconds), text })
     }
   }
-  return lines.sort((a, b) => a.time - b.time)
+  if (lines.length) return lines.sort((a, b) => a.time - b.time)
+  return plainLines.map((text, index) => ({ time: index * 4, text }))
 }

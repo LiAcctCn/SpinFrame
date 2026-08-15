@@ -94,7 +94,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (!project) return undefined
       const next = structuredClone(project)
       if (kind === 'lyrics') {
-        next.lyrics = { asset: result.asset, lines: parseLrc(result.text ?? '') }
+        const lines = parseLrc(result.text ?? '')
+        if (!lines.length) throw new Error('歌词文件中没有可显示的文字，请检查 LRC 或 TXT 内容。')
+        next.lyrics = { asset: result.asset, lines }
       } else {
         next[kind] = result.asset
         if (kind === 'music') next.player.musicStartOffset = 0

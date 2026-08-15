@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { Heart, ListMusic, MessageCircle, Pause, Play, Repeat2, SkipBack, SkipForward } from 'lucide-react'
 import type { FocusPoint, LyricsLine, MediaAsset, VideoProject } from '@shared/project'
-import { isImageAsset, mediaUrl, totalDuration } from '@shared/project'
+import { DEFAULT_LYRICS, isImageAsset, mediaUrl, totalDuration } from '@shared/project'
 import { easeOutCubic, formatTime, mix, resolveCompositionTime, smoothstep } from '@shared/timeline'
 import './composition.css'
 
@@ -211,7 +211,7 @@ export function CompositionStage({ project, time, playing, exportMode = false, f
   const rightVideoTime = project.rightVideo?.duration
     ? timeline.playerTime % Math.max(0.01, project.rightVideo.duration)
     : timeline.playerTime
-  const lyrics = project.lyrics?.lines ?? []
+  const lyrics = project.lyrics?.lines.length ? project.lyrics.lines : DEFAULT_LYRICS
   const duration = totalDuration(project)
   const showTransitionLayer = time < timeline.playerStart
   const showPlayerScene = time >= project.transition.startTime
@@ -293,11 +293,9 @@ export function CompositionStage({ project, time, playing, exportMode = false, f
           <p>{project.player.eyebrow}</p>
         </div>
 
-        {lyrics.length > 0 && (
-          <div className="lyrics-wrap" style={{ opacity: lyricsOpacity }}>
-            <Lyrics lines={lyrics} musicTime={timeline.musicTime} />
-          </div>
-        )}
+        <div className="lyrics-wrap" style={{ opacity: lyricsOpacity }}>
+          <Lyrics lines={lyrics} musicTime={timeline.musicTime} />
+        </div>
 
         <div className="vinyl-position">
           <Vinyl project={project} angle={angle} />

@@ -81,6 +81,9 @@ export function MaterialPanel({ project }: { project: VideoProject }): JSX.Eleme
       <div className="material-list">
         {items.map((item, index) => {
           const asset = assetFor(project, item.kind)
+          const assetDescription = item.kind === 'lyrics' && asset && project.lyrics?.lines.length
+            ? `${asset?.name} · ${project.lyrics.lines.length} 行`
+            : asset?.name ?? item.hint
           return (
             <div
               key={item.kind}
@@ -98,7 +101,7 @@ export function MaterialPanel({ project }: { project: VideoProject }): JSX.Eleme
               <div className="material-thumb"><AssetPreview kind={item.kind} asset={asset} /></div>
               <div className="material-copy">
                 <b>{item.label}{item.optional && <em>可选</em>}</b>
-                <span title={asset?.name}>{asset?.name ?? item.hint}</span>
+                <span title={assetDescription}>{assetDescription}</span>
               </div>
               <div className="material-actions">
                 <button className="import-action" onClick={() => void completeImport(item.kind)}><Upload size={13} />{asset ? '更换' : '添加'}</button>

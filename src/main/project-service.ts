@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import type { AssetKind, MediaAsset, VideoProject } from '../shared/project'
 import { createDemoProject } from '../shared/project'
 import { convertAppleImageWithOrientation } from './heif-orientation'
+import { decodeLyricsFile } from './lyrics-file'
 
 const PROJECT_FILENAME = 'project.json'
 const videoExtensions = ['.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv']
@@ -145,7 +146,7 @@ export class ProjectService {
     }
 
     const response: { asset: MediaAsset; text?: string } = { asset }
-    if (kind === 'lyrics') response.text = await fs.readFile(targetPath, 'utf8')
+    if (kind === 'lyrics') response.text = decodeLyricsFile(await fs.readFile(targetPath))
     return response
   }
 
