@@ -79,6 +79,7 @@ button { color: inherit; }
 .duration-choices button:hover { border-color: #77736b; color: #d9d6ce; }
 .duration-choices button.selected { border-color: #d7d3c9; background: #d7d3c9; color: #171716; }
 .ready-note, .format-note { margin: 17px 19px; display: flex; align-items: center; gap: 7px; color: #7d876c; font-size: 8px; line-height: 1.4; }
+.simple-section > .format-note { min-height: 14px; margin: 16px 0 0; }
 .panel-back { margin: 14px 19px 0; display: flex; align-items: center; gap: 6px; padding: 5px 0; border: 0; background: transparent; color: #8d8a83; font-size: 9px; cursor: pointer; }
 .panel-back:hover { color: #e1ded6; }
 .choice-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
