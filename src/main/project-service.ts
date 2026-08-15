@@ -2,9 +2,9 @@ import { app, dialog } from 'electron'
 import { promises as fs } from 'node:fs'
 import { basename, dirname, extname, join, normalize, relative, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { spawn } from 'node:child_process'
 import type { AssetKind, MediaAsset, VideoProject } from '../shared/project'
 import { createDemoProject } from '../shared/project'
+import { convertAppleImageWithOrientation } from './heif-orientation'
 
 const PROJECT_FILENAME = 'project.json'
 const videoExtensions = ['.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv']
@@ -174,25 +174,7 @@ export class ProjectService {
 
   private async convertAppleImage(sourcePath: string, targetPath: string): Promise<void> {
     if (process.platform !== 'darwin') throw new Error('HEIC and HEIF import is only available on macOS')
-    try {
-      const converter = spawn('/usr/bin/sips', ['-s', 'format', 'png', sourcePath, '--out', targetPath], {
-        stdio: ['ignore', 'ignore', 'pipe']
-      })
-      let diagnostic = ''
-      converter.stderr.on('data', (chunk) => {
-        diagnostic = `${diagnostic}${chunk.toString()}`.slice(-2000)
-      })
-      const code = await new Promise<number | null>((resolve, reject) => {
-        converter.once('error', reject)
-        converter.once('close', resolve)
-      })
-      if (code !== 0) throw new Error(`The HEIC/HEIF photo could not be converted. ${diagnostic}`)
-      const stats = await fs.stat(targetPath)
-      if (!stats.isFile() || stats.size === 0) throw new Error('The HEIC/HEIF conversion produced an empty image')
-    } catch (error) {
-      await fs.rm(targetPath, { force: true }).catch(() => undefined)
-      throw error
-    }
+    await convertAppleImageWithOrientation(sourcePath, targetPath)
   }
 
   private async installDefaultMusic(): Promise<boolean> {
