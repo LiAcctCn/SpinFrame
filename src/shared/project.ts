@@ -74,12 +74,7 @@ export interface VideoProject {
   updatedAt: string
 }
 
-export const DEFAULT_LYRICS: LyricsLine[] = [
-  { time: 0, text: '享受一分钟的感动' },
-  { time: 3.8, text: '是否爱上一个人不问明天过后' },
-  { time: 8.2, text: '山明和水秀不比你有看头' },
-  { time: 12.5, text: '牵着你的手一直走到最后' }
-]
+export const LYRICS_PLACEHOLDER: LyricsLine[] = [{ time: 0, text: 'NO TIMED LYRICS' }]
 
 export function createDemoProject(): VideoProject {
   return {
