@@ -43,7 +43,7 @@ It is not a music player, streaming client, or professional nonlinear video edit
 
 ### Project status
 
-SpinFrame is currently an early-stage application. Version `0.1.6` includes one template: **Editorial Vinyl**.
+SpinFrame is currently an early-stage application. Version `0.1.7` includes one template: **Editorial Vinyl**.
 
 The macOS Apple Silicon build has been tested locally. A Windows packaging target is included, but releases should be built and verified on Windows before distribution. macOS packages created without an Apple Developer ID are not notarized and may require **Right-click → Open** on first launch.
 
@@ -167,7 +167,7 @@ SpinFrame 是一款桌面端模板化音乐转场视频生成器。用户只需�
 
 ### 项目状态
 
-SpinFrame 目前仍处于早期开发阶段。`0.1.6` 版本包含一个模板：**Editorial Vinyl**。
+SpinFrame 目前仍处于早期开发阶段。`0.1.7` 版本包含一个模板：**Editorial Vinyl**。
 
 macOS Apple Silicon 版本已经完成本地测试。项目包含 Windows 打包目标，但正式分发前应在 Windows 系统上完成构建与验证。未使用 Apple Developer ID 构建的 macOS 安装包不会经过 Apple 公证，首次启动时可能需要右键选择“打开”。
 
