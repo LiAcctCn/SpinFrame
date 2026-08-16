@@ -52,6 +52,10 @@
       {
         "from": "assets/demo/music.m4a",
         "to": "demo/music.m4a"
+      },
+      {
+        "from": "assets/demo/lyrics.lrc",
+        "to": "demo/lyrics.lrc"
       }
     ],
     "asarUnpack": [

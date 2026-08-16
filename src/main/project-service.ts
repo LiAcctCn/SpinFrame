@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs'
 import { basename, dirname, extname, join, normalize, relative, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { AssetKind, MediaAsset, VideoProject } from '../shared/project'
-import { createDemoProject } from '../shared/project'
+import { createDemoProject, parseLrc } from '../shared/project'
 import { convertAppleImageWithOrientation } from './heif-orientation'
 import { decodeLyricsFile } from './lyrics-file'
 
@@ -48,6 +48,7 @@ export class ProjectService {
       needsSave = true
     }
     if (await this.installDefaultMusic()) needsSave = true
+    if (await this.installDefaultLyrics()) needsSave = true
     if (needsSave) await this.save(this.project)
   }
 
@@ -153,7 +154,7 @@ export class ProjectService {
   async readTextAsset(relativePath: string): Promise<string> {
     const path = this.resolveMedia(relativePath)
     if (!path) throw new Error('Invalid project media path')
-    return fs.readFile(path, 'utf8')
+    return decodeLyricsFile(await fs.readFile(path))
   }
 
   private assetsInProject(): MediaAsset[] {
@@ -205,6 +206,39 @@ export class ProjectService {
       duration: 33.856
     }
     this.project.player.musicStartOffset = 0
+    return changed
+  }
+
+  private async installDefaultLyrics(): Promise<boolean> {
+    const defaultLyricsId = 'spinframe-default-lyrics'
+    if (this.project.lyrics?.asset && this.project.lyrics.asset.id !== defaultLyricsId) return false
+    const sourcePath = app.isPackaged
+      ? join(process.resourcesPath, 'demo', 'lyrics.lrc')
+      : join(app.getAppPath(), 'assets', 'demo', 'lyrics.lrc')
+    const relativePath = 'media/default-lyrics.lrc'
+    const targetPath = join(this.projectDirectory, relativePath)
+    let lines: ReturnType<typeof parseLrc>
+    try {
+      await fs.copyFile(sourcePath, targetPath)
+      lines = parseLrc(decodeLyricsFile(await fs.readFile(targetPath)))
+    } catch {
+      // A missing optional demo asset must never prevent the editor from starting.
+      return false
+    }
+    if (!lines.length) return false
+    const changed = this.project.lyrics?.asset?.name !== '明天过后.lrc'
+      || this.project.lyrics?.asset?.relativePath !== relativePath
+      || JSON.stringify(this.project.lyrics?.lines) !== JSON.stringify(lines)
+    this.project.lyrics = {
+      asset: {
+        id: defaultLyricsId,
+        kind: 'lyrics',
+        name: '明天过后.lrc',
+        relativePath,
+        mimeType: 'text/plain'
+      },
+      lines
+    }
     return changed
   }
 
